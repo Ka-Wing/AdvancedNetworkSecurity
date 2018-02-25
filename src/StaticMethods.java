@@ -82,7 +82,13 @@ public class StaticMethods {
      * @throws JSONException When JSON exception.
      */
     public static void saveJSONToFile(JSONObject jsonObject, String fileName) throws IOException, JSONException {
-        File file = new File(fileName);
+        // Check if name ends with ".json"
+        String sub = fileName.substring(fileName.length() - 5, fileName.length());
+        String newFileName = fileName;
+        if(!sub.equals(".json")) {
+            newFileName += ".json";
+        }
+        File file = new File(newFileName);
         file.createNewFile();
         FileWriter fileWriter = new FileWriter(file);
         fileWriter.write(jsonObject.toString(4));

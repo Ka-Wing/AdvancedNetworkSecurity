@@ -22,8 +22,10 @@ public class PcapInspector {
         this.errorBuffer = new StringBuilder();
 
         modules = new ArrayList<>();
-        modules.add(new ARPInspection(configurationFile));
+        modules.add(new ARPInspection());
         modules.add(new DNSParser());
+
+        DAIDatabase.getInstance().loadConfiguration(configurationFile);
     }
 
     public void run() throws Exception {
@@ -75,6 +77,8 @@ public class PcapInspector {
             System.out.println();
             System.out.println(parsingSuccessful + " packets parsed successfully");
             System.out.println(parsingFailed + " packets failed");
+
+            packetsJSONObject.put("logs", Logger.getInstance().toJSON());
             StaticMethods.saveJSONToFile(packetsJSONObject, this.jsonOutputFilePath);
             System.out.println("File saved to " + this.jsonOutputFilePath);
 
@@ -91,9 +95,9 @@ public class PcapInspector {
         String inputPcapFilePath = args[1];
         String outputJSONFilePath = args[2];
 
-        configurationFilePath = "C:\\Users\\kw\\Dropbox\\TU Delft\\Y2\\Q3\\CS4115 Advanced Network Security\\Project 2\\config.txt";
-        inputPcapFilePath = "C:\\Users\\kw\\Dropbox\\TU Delft\\Y2\\Q3\\CS4115 Advanced Network Security\\Project 2\\pcap\\arp1.pcap";
-        outputJSONFilePath = "C:\\Users\\kw\\Dropbox\\TU Delft\\Y2\\Q3\\CS4115 Advanced Network Security\\Project 2\\json.json";
+//        configurationFilePath = "C:\\Users\\kw\\Dropbox\\TU Delft\\Y2\\Q3\\CS4115 Advanced Network Security\\Project 2\\config.txt";
+//        inputPcapFilePath = "C:\\Users\\kw\\Dropbox\\TU Delft\\Y2\\Q3\\CS4115 Advanced Network Security\\Project 2\\pcap\\arp1.pcap";
+//        outputJSONFilePath = "C:\\Users\\kw\\Dropbox\\TU Delft\\Y2\\Q3\\CS4115 Advanced Network Security\\Project 2\\json.json";
 
         System.out.println(configurationFilePath);
         System.out.println(inputPcapFilePath);
