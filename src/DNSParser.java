@@ -967,16 +967,6 @@ public class DNSParser implements Module {
         return this.errorBuffer;
     }
 
-    public static void main(String[] args) {
-        System.out.println("Pcap at " + args[0]);
-        DNSParser p = new DNSParser(args[0]);
-        try {
-            p.readPcapFile();
-        } catch (Exception e) {
-            System.out.println(p.getErrorBuffer().toString());
-        }
-    }
-
     @Override
     public boolean checkHeader(PcapPacket p) {
         if (p.hasHeader(new Udp())) {

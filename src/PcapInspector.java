@@ -92,7 +92,7 @@ public class PcapInspector {
         String outputJSONFilePath = args[2];
 
         configurationFilePath = "C:\\Users\\kw\\Dropbox\\TU Delft\\Y2\\Q3\\CS4115 Advanced Network Security\\Project 2\\config.txt";
-        inputPcapFilePath = "C:\\Users\\kw\\Dropbox\\TU Delft\\Y2\\Q3\\CS4115 Advanced Network Security\\Project 2\\pcap\\arpdns1.pcap";
+        inputPcapFilePath = "C:\\Users\\kw\\Dropbox\\TU Delft\\Y2\\Q3\\CS4115 Advanced Network Security\\Project 2\\pcap\\arp1.pcap";
         outputJSONFilePath = "C:\\Users\\kw\\Dropbox\\TU Delft\\Y2\\Q3\\CS4115 Advanced Network Security\\Project 2\\json.json";
 
         System.out.println(configurationFilePath);
