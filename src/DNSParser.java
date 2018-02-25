@@ -12,7 +12,7 @@ import org.json.*;
 
 import java.io.*;
 
-public class DNSParser {
+public class DNSParser implements Module {
 
     private String pcapFilePath;
     private Pcap pcap;
@@ -21,6 +21,10 @@ public class DNSParser {
 
     public DNSParser(String file) {
         this.pcapFilePath = file;
+        errorBuffer = new StringBuilder();
+    }
+
+    public DNSParser() {
         errorBuffer = new StringBuilder();
     }
 
@@ -62,7 +66,7 @@ public class DNSParser {
 
             for (PcapPacket packet : packets) {
                 try {
-                    packetsJSONObject.put("packet_" + index, parsePacket(packet));
+                    packetsJSONObject.put("packet_" + index, inspect(packet));
                     System.out.println("Packet " + index + " completed.");
                     parsingSuccessful ++;
 
@@ -79,7 +83,7 @@ public class DNSParser {
             System.out.println(parsingSuccessful + " packets parsed successfully");
             System.out.println(parsingFailed + " packets failed");
             String fileName = "json.json";
-            saveJSONToFile(packetsJSONObject, fileName);
+            StaticMethods.saveJSONToFile(packetsJSONObject, fileName);
             System.out.println("File saved to " + fileName);
 
         } catch (Exception e) {
@@ -90,14 +94,19 @@ public class DNSParser {
 
     }
 
-
     /**
      * Parses the packet.
      * @param packet The packet that has to be parsed.
      * @return A JSONObject object containing information of the packet
      * @throws Exception When something goes horribly wrong.
      */
-    private JSONObject parsePacket(PcapPacket packet) throws Exception {
+    @Override
+    public JSONObject inspect(PcapPacket packet) throws Exception {
+        // If not DNS.
+        if (!checkHeader(packet)) {
+            return null;
+        }
+
         JSONObject packetJSONObject = new JSONObject();
 
         Ethernet ethernetHeader = packet.getHeader(new Ethernet());
@@ -126,7 +135,7 @@ public class DNSParser {
 
         JSONObject portsJSONObject = getPorts(getDataInputStream(ipHeader.getPayload()));
 
-        JSONObject ipJSONObject = appendJSONObject(addressesJSONObject, portsJSONObject);
+        JSONObject ipJSONObject = StaticMethods.appendJSONObject(addressesJSONObject, portsJSONObject);
 
 
         if (transportLayerProtocol.equals("TCP")) {
@@ -171,13 +180,13 @@ public class DNSParser {
         JSONObject ports = new JSONObject();
 
         // Appends the next two bytes.
-        String sourcePortBinary = appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte()))) +
-                appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+        String sourcePortBinary = StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte()))) +
+                StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
         int sourcePort = Integer.parseInt(sourcePortBinary, 2);
 
         // Appends the next two bytes.
-        String destinationPortBinary = appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte()))) +
-                appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+        String destinationPortBinary = StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte()))) +
+                StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
         int destinationPort = Integer.parseInt(destinationPortBinary, 2);
 
         ports.put("srcport", sourcePort);
@@ -205,29 +214,10 @@ public class DNSParser {
      * @throws IOException If reading the payload goes wrong.
      */
     private int getInternetProtocolVersion(DataInputStream dataInputStream) throws IOException {
-        String versionBinary = appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte()))).substring(0, 4);
+        String versionBinary = StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte()))).substring(0, 4);
         return Integer.parseInt(versionBinary, 2);
     }
-
-    /**
-     * Appends two JSONObject.
-     *
-     * @param j1 First JSONObject
-     * @param j2 Second JSONObject
-     * @return The appended JSONObject
-     * @throws JSONException If JSON goes wrong.
-     */
-    private JSONObject appendJSONObject(JSONObject j1, JSONObject j2) throws JSONException {
-        JSONObject merged = j1;
-
-        for (String key : JSONObject.getNames(j2)) {
-            merged.put(key, j2.get(key));
-        }
-
-        return merged;
-
-
-    }
+    
 
     /**
      * Retrieves the transport layer protocol from a given DataInputStream object with the IP4/IP6 header loaded
@@ -245,7 +235,7 @@ public class DNSParser {
             dataInputStream.skipBytes(6);
         }
 
-        int protocol = unsignByte(dataInputStream.readByte());
+        int protocol = StaticMethods.unsignByte(dataInputStream.readByte());
 
         if (protocol == 6) {
             return "TCP";
@@ -274,7 +264,7 @@ public class DNSParser {
         // First four bytes from offset 12 denotes the source IP address.
         for (int i = 0; i < 4; i++) {
             // Get the unsigned byte and append them.
-            sourceAddress += unsignByte(dataInputStream.readByte()) + ".";
+            sourceAddress += StaticMethods.unsignByte(dataInputStream.readByte()) + ".";
         }
 
         // Remove the dot at the end.
@@ -284,7 +274,7 @@ public class DNSParser {
         // Next four bytes denotes the destination IP address.
         for (int i = 0; i < 4; i++) {
             // Get the unsigned byte and append them.
-            destinationAddress += unsignByte(dataInputStream.readByte()) + ".";
+            destinationAddress += StaticMethods.unsignByte(dataInputStream.readByte()) + ".";
         }
         destinationAddress = destinationAddress.substring(0, destinationAddress.length() - 1);
 
@@ -314,7 +304,7 @@ public class DNSParser {
 
         // Append the next 16 bytes
         for (int i = 0; i < 16; i ++) {
-            sourceAddress += Integer.toHexString(unsignByte(dataInputStream.readByte()));
+            sourceAddress += Integer.toHexString(StaticMethods.unsignByte(dataInputStream.readByte()));
             if(i % 2 != 0) {
                 sourceAddress += ":";
             }
@@ -322,7 +312,7 @@ public class DNSParser {
 
         // Appends the next 16 bytes
         for (int i = 0; i < 16; i ++) {
-            destinationAddress += Integer.toHexString(unsignByte(dataInputStream.readByte()));
+            destinationAddress += Integer.toHexString(StaticMethods.unsignByte(dataInputStream.readByte()));
             if(i % 2 != 0) {
                 destinationAddress += ":";
             }
@@ -342,23 +332,6 @@ public class DNSParser {
     }
 
     /**
-     * Saves the JSONObject to a JSON file with the given file name.
-     * @param jsonObject The JSONObject to be outputted.
-     * @param fileName The name for the file.
-     * @throws IOException When file creating/writing goes wrong.
-     * @throws JSONException When JSON exception.
-     */
-    private void saveJSONToFile(JSONObject jsonObject, String fileName) throws IOException, JSONException {
-        File file = new File(fileName);
-        file.createNewFile();
-        FileWriter fileWriter = new FileWriter(file);
-        fileWriter.write(jsonObject.toString(4));
-        fileWriter.flush();
-        fileWriter.close();
-
-    }
-
-    /**
      * Decodes the domain name in the question, answer, authority and additional section.
      *
      * @param dataInputStream The DataInputStream object that has already read the bytes up til the domain name bytes.
@@ -373,8 +346,8 @@ public class DNSParser {
 
         while(true) {
             // Read the next byte as length, convert from signed byte to unsigned byte.
-            int length = unsignByte(dataInputStream.readByte());
-            String lengthBinary = this.appendZero(Integer.toBinaryString(length));
+            int length = StaticMethods.unsignByte(dataInputStream.readByte());
+            String lengthBinary = StaticMethods.appendZero(Integer.toBinaryString(length));
             //bytesRead ++;
 
             // Check if name is a pointer
@@ -382,7 +355,7 @@ public class DNSParser {
 
                 // Pointer of name in binary
                 String pointerBinary = lengthBinary +
-                        this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+                        StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
 
                 // Remove the first two binary numbers (both set to '1'), and use the remaining 14 bits as offset.
                 int offset = Integer.parseInt(pointerBinary.substring(2, pointerBinary.length()), 2);
@@ -402,7 +375,7 @@ public class DNSParser {
 
             // Turn the bytes into ASCII and append them.
             for(int j = 0; j < length; j ++) {
-                int decimalValue = unsignByte(dataInputStream.readByte());
+                int decimalValue = StaticMethods.unsignByte(dataInputStream.readByte());
                 char asciiCharacter = (char) decimalValue;
                 name.append(asciiCharacter);
             }
@@ -567,7 +540,7 @@ public class DNSParser {
         if(type.equals("A")) {
             String address = "";
             for (int q = 0; q < rdLength; q ++) {
-                address += Integer.parseInt(Integer.toBinaryString(unsignByte(dataInputStream.readByte())), 2);
+                address += Integer.parseInt(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())), 2);
                 address += ".";
             }
 
@@ -597,35 +570,35 @@ public class DNSParser {
             //Serial
             String serialBinary = "";
             for (int i = 0; i < 4; i++) {
-                serialBinary += appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+                serialBinary += StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
             }
             String serial = String.valueOf(Integer.parseInt(serialBinary, 2));
 
             //Refresh
             String refreshBinary = "";
             for (int i = 0; i < 4; i++) {
-                refreshBinary += appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+                refreshBinary += StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
             }
             int refresh = Integer.parseInt(refreshBinary, 2);
 
             //Retry
             String retryBinary = "";
             for (int i = 0; i < 4; i++) {
-                retryBinary += appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+                retryBinary += StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
             }
             int retry = Integer.parseInt(retryBinary, 2);
 
             //Expire
             String expireBinary = "";
             for (int i = 0; i < 4; i++) {
-                expireBinary += appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+                expireBinary += StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
             }
             int expire = Integer.parseInt(expireBinary, 2);
 
             //Minimum
             String minimumBinary = "";
             for (int i = 0; i < 4; i++) {
-                minimumBinary += appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+                minimumBinary += StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
             }
             int minimum = Integer.parseInt(minimumBinary, 2);
 
@@ -638,7 +611,7 @@ public class DNSParser {
             rDataJSONObject.put("Minimum", minimum);
 
         } else if (type.equals("MX")) {
-            String preference = appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+            String preference = StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
             String exchange = decodingName((dataInputStream));
 
             rDataJSONObject.put("Preference", preference);
@@ -647,7 +620,7 @@ public class DNSParser {
         } else if (type.equals("TXT")) {
             String text = "";
             for (int i = 0; i < rdLength; i ++) {
-                int decimalValue = unsignByte(dataInputStream.readByte());
+                int decimalValue = StaticMethods.unsignByte(dataInputStream.readByte());
                 char asciiCharacter = (char) decimalValue;
                 text += asciiCharacter;
             }
@@ -656,19 +629,19 @@ public class DNSParser {
         } else if (type.equals("WKS")) {
             String address = "";
             for (int q = 0; q < 4; q ++) {
-                address += Integer.parseInt(Integer.toBinaryString(unsignByte(dataInputStream.readByte())), 2);
+                address += Integer.parseInt(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())), 2);
                 address += ".";
             }
 
             //Removes last dot.
             address = address.substring(0, address.length() - 1);
 
-            int protocolNumber = Integer.parseInt(Integer.toBinaryString(unsignByte(dataInputStream.readByte())), 2);
+            int protocolNumber = Integer.parseInt(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())), 2);
 
             JSONObject bitmap = new JSONObject();
             for (int i = 0; i < rdLength - 5; i ++) {
                 try {
-                    String binary = appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+                    String binary = StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
                     for (int j = 0; j < binary.length(); j ++) {
                         bitmap.put(String.valueOf(j), binary.substring(j, j + 1));
                     }
@@ -735,25 +708,25 @@ public class DNSParser {
             String name = this.decodingName(dataInputStream);
 
             // Decoding TYPE
-            String typeBinary = this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte()))) +
-                    this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+            String typeBinary = StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte()))) +
+                    StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
             String type = decodingRRType(typeBinary);
 
             // Decoding CLASS
-            String classTypeBinary = this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte()))) +
-                    this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+            String classTypeBinary = StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte()))) +
+                    StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
             String classType = decodingRRClass(classTypeBinary);
 
             // Decoding TTL
-            String timeToLiveBinary = this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte()))) +
-                    this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte()))) +
-                    this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte()))) +
-                    this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+            String timeToLiveBinary = StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte()))) +
+                    StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte()))) +
+                    StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte()))) +
+                    StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
             int timeToLive = Integer.parseInt(timeToLiveBinary, 2);
 
             // Decoding RDLENGTH
-            String rdLengthBinary = this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte()))) +
-                    this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+            String rdLengthBinary = StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte()))) +
+                    StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
             int rdLength = Integer.parseInt(rdLengthBinary, 2);
 
             // Decoding RDATA
@@ -798,14 +771,14 @@ public class DNSParser {
             String QName = this.decodingName(dataInputStream);
 
             // Read next two signed bytes, convert them to unsigned bytes and then both to 8-length binary, then append them.
-            String QTypeBinary = this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())))
-                    + this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+            String QTypeBinary = StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())))
+                    + StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
 
             String QTypeString = decodingQType(QTypeBinary);
 
             // Read next two signed bytes, convert them to unsigned bytes and then both to 8-length binary, then append them.
-            String QClassBinary = this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())))
-                    + this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+            String QClassBinary = StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())))
+                    + StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
 
             String QClassString = decodingQClass(QClassBinary);
 
@@ -831,21 +804,21 @@ public class DNSParser {
         // Read length if transport layer protocol is TCP
         int length = 0;
         if (lengthAvailable) {
-            String lengthBinary = this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())))
-                    + this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+            String lengthBinary = StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())))
+                    + StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
             length = Integer.parseInt(lengthBinary, 2);
         }
 
 
         // Read next two byte, convert them to binary and append them.
-        String idBinary = this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())))
-                + this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+        String idBinary = StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())))
+                + StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
 
         long id = Integer.parseInt(idBinary, 2);
 
         // Read next two byte, convert them to binary and append them.
-        String flags = this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())))
-                + this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+        String flags = StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())))
+                + StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
 
         //QR decoding
         String QR = flags.substring(0, 1);
@@ -949,23 +922,23 @@ public class DNSParser {
         }
 
         // Read next two byte, convert them to binary and append them.
-        String QDCountString = this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())))
-                + this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+        String QDCountString = StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())))
+                + StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
         int QDCount = Integer.parseInt(QDCountString, 2);
 
         // Read next two byte, convert them to binary and append them.
-        String ANCountString = this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())))
-                + this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+        String ANCountString = StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())))
+                + StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
         int ANCount = Integer.parseInt(ANCountString, 2);
 
         // Read next two byte, convert them to binary and append them.
-        String NSCountString = this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())))
-                + this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+        String NSCountString = StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())))
+                + StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
         int NSCount = Integer.parseInt(NSCountString, 2);
 
         // Read next two byte, convert them to binary and append them.
-        String ARCountString = this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())))
-                + this.appendZero(Integer.toBinaryString(unsignByte(dataInputStream.readByte())));
+        String ARCountString = StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())))
+                + StaticMethods.appendZero(Integer.toBinaryString(StaticMethods.unsignByte(dataInputStream.readByte())));
         int ARCount = Integer.parseInt(ARCountString, 2);
 
         JSONObject headerJSONObject = new JSONObject();
@@ -989,28 +962,6 @@ public class DNSParser {
         return headerJSONObject;
     }
 
-    /**
-     * Appends "0" at the beginning of the given binary string up to 8 bits.
-     * @param binary The binary String object to append "0" with.
-     * @return The binary String object.
-     */
-    private String appendZero(String binary) {
-        String result = binary;
-        while (result.length() < 8) {
-            result = "0" + result;
-        }
-
-        return result;
-    }
-
-    /**
-     * Converts a signed byte into a unsigned byte.
-     * @param signedByte The signed byte to be converted.
-     * @return An integer of the unsigned byte.
-     */
-    private int unsignByte(byte signedByte) {
-        return signedByte & 0xFF;
-    }
 
     private StringBuilder getErrorBuffer() {
         return this.errorBuffer;
@@ -1026,4 +977,20 @@ public class DNSParser {
         }
     }
 
+    @Override
+    public boolean checkHeader(PcapPacket p) {
+        if (p.hasHeader(new Udp())) {
+            Udp udp = p.getHeader(new Udp());
+            if (udp.source() == 53 || udp.destination() == 53) {
+                return true;
+            }
+        } else if (p.hasHeader(new Tcp())) {
+            Tcp tcp = p.getHeader(new Tcp());
+            if (tcp.source() == 53 || tcp.destination() == 53) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
