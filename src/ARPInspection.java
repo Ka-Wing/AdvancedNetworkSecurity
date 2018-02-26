@@ -219,6 +219,8 @@ public class ARPInspection implements Module {
             idsJSONObject.put("reason", "Target Hardward Address of an ARP request is not only zeroes.");
             Logger.getInstance().logNotice("ARP request's MAC address should be 0:0:0:0:0:0, but is " + tha + " " +
                     "instead." );
+        } else {
+            idsJSONObject.put("action", "permitted");
         }
 
         jsonObject.put("ids", idsJSONObject);

@@ -6,8 +6,10 @@ import org.json.JSONObject;
  */
 public interface Module {
 
+    // Inspects the pcap file.
     JSONObject inspect(PcapPacket p) throws Exception;
 
+    // Checks if certain headers exists.
     boolean checkHeader(PcapPacket p);
 
 }

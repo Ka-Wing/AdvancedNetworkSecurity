@@ -7,6 +7,9 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Inspects the pcap files with the existing modules.
+ */
 public class PcapInspector {
 
     private List<Module> modules;
@@ -28,6 +31,10 @@ public class PcapInspector {
         DAIDatabase.getInstance().loadConfiguration(configurationFile);
     }
 
+    /**
+     * Reads the pcap file.
+     * @throws Exception If something goes horribly wrong.
+     */
     public void run() throws Exception {
 
         StringBuilder errorBuffer = new StringBuilder();
@@ -94,10 +101,6 @@ public class PcapInspector {
         String configurationFilePath = args[0];
         String inputPcapFilePath = args[1];
         String outputJSONFilePath = args[2];
-
-//        configurationFilePath = "C:\\Users\\kw\\Dropbox\\TU Delft\\Y2\\Q3\\CS4115 Advanced Network Security\\Project 2\\config.txt";
-//        inputPcapFilePath = "C:\\Users\\kw\\Dropbox\\TU Delft\\Y2\\Q3\\CS4115 Advanced Network Security\\Project 2\\pcap\\arp1.pcap";
-//        outputJSONFilePath = "C:\\Users\\kw\\Dropbox\\TU Delft\\Y2\\Q3\\CS4115 Advanced Network Security\\Project 2\\json.json";
 
         System.out.println(configurationFilePath);
         System.out.println(inputPcapFilePath);

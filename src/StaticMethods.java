@@ -32,7 +32,12 @@ public class StaticMethods {
         return signedByte & 0xFF;
     }
 
-
+    /**
+     * Converts an IPv4 address in bytes to a String.
+     * @param ipAddressBytes IPv4 in bytes.
+     * @return IPv4 in String.
+     * @throws Exception if something goes horribly wrong.
+     */
     public static String convertIpAddressByteToString(byte[] ipAddressBytes) throws Exception {
         //Converts bytes to hexademical
         String ipAddress = "";
@@ -96,6 +101,12 @@ public class StaticMethods {
         fileWriter.close();
     }
 
+    /**
+     * Converts a MAC address in bytes to a String.
+     * @param macAddressBytes MAC address in bytes.
+     * @return MAC address in String.
+     * @throws Exception if something goes horribly wrong.
+     */
     public static String convertMacAddressByteToString(byte[] macAddressBytes) throws Exception {
         //Converts bytes to hexademical
         String macAddress = "";
